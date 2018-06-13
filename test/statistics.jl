@@ -40,11 +40,16 @@ end
     @test isnan(median([NaN]))
     @test isnan(median([0.0,NaN]))
     @test isnan(median([NaN,0.0]))
+    @test isnan(median([NaN,0.0,1.0]))
+    @test isnan(median(Any[NaN,0.0,1.0]))
     @test isequal(median([NaN 0.0; 1.2 4.5], dims=2), reshape([NaN; 2.85], 2, 1))
 
     @test ismissing(median([1, missing]))
+    @test ismissing(median([1, 2, missing]))
+    @test ismissing(median([NaN, 2.0, missing]))
     @test ismissing(median([NaN, missing]))
     @test ismissing(median([missing, NaN]))
+    @test ismissing(median(Any[missing, 2.0, 3.0, 4.0, NaN]))
     @test median(skipmissing([1, missing, 2])) === 1.5
 
     @test median!([1 2 3 4]) == 2.5
