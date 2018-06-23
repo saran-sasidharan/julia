@@ -1715,6 +1715,8 @@ end
 @deprecate_moved eigs "Arpack"
 @deprecate_moved svds "Arpack"
 
+@deprecate_moved spdiagm "SparseArrays"
+
 # PR #27711
 @deprecate reduce(op, v0, itr) reduce(op, itr; init=v0)
 @deprecate foldl(op, v0, itr) foldl(op, itr; init=v0)
