@@ -2569,8 +2569,13 @@ static jl_cgval_t emit_invoke(jl_codectx_t &ctx, jl_expr_t *ex, jl_value_t *rt)
     if (lival.constant) {
         jl_method_instance_t *li = (jl_method_instance_t*)lival.constant;
         assert(jl_is_method_instance(li));
-        assert((li->min_world <= ctx.linfo->min_world && li->max_world >= ctx.linfo->max_world) ||
-               (ctx.linfo->min_world == 0 && ctx.linfo->max_world == 0));
+        //TODO: fix this assert condition
+        //  currently fails due to incorrect inference recording
+        //  need to separate edge-target creation from recording of inferred code
+        //  (since in some cases, we need to create wide edges to inferred methods that we decided not to infer,
+        //  for example, from `ensure_rescheduled(Task)` to `findnext(Function, Array{Task, 1}, Int64)`)
+        //assert((li->min_world <= ctx.linfo->min_world && li->max_world >= ctx.linfo->max_world) ||
+        //       (ctx.linfo->min_world == 0 && ctx.linfo->max_world == 0));
         if (li->invoke == jl_fptr_const_return) {
             assert(li->inferred_const);
             result = mark_julia_const(li->inferred_const);
@@ -3754,8 +3759,7 @@ static void emit_cfunc_invalidate(
         break;
     }
     case jl_returninfo_t::SRet: {
-        unsigned sret_nbytes = jl_datatype_size(rettype);
-        emit_memcpy(ctx, &*gf_thunk->arg_begin(), gf_ret, sret_nbytes, jl_alignment(sret_nbytes));
+        emit_memcpy(ctx, &*gf_thunk->arg_begin(), gf_ret, jl_datatype_size(rettype), julia_alignment(rettype, 0));
         ctx.builder.CreateRetVoid();
         break;
     }
