@@ -243,7 +243,7 @@ _median(v::AbstractArray{T}, ::Colon) where {T} = median!(copyto!(Array{T,1}(und
 """
     quantile!([q::AbstractArray, ] v::AbstractVector, p; sorted=false)
 
-Compute the quantile(s) of vector `v` at a specified probability or vector or tuple of
+Compute the quantile(s) of a vector `v` at a specified probability or vector or tuple of
 probabilities `p` on the interval [0,1]. If `p` is a vector, an optional
 output array `q` may also be specified. (If not provided, a new output array is created.)
 The keyword argument `sorted` indicates whether `v` can be assumed to be sorted; if
@@ -359,7 +359,7 @@ end
 """
     quantile(itr, p; sorted=false)
 
-Compute the quantile(s) of collection `itr` at a specified probability or vector or tuple of
+Compute the quantile(s) of a collection `itr` at a specified probability or vector or tuple of
 probabilities `p` on the interval [0,1]. The keyword argument `sorted` indicates whether
 `itr` can be assumed to be sorted.
 
