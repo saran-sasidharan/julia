@@ -209,13 +209,13 @@ julia> median([1, 2, 3])
 2.0
 
 julia> median([1, 2, 3, 4])
-3.5
+2.5
 
 julia> median([1, 2, missing, 4])
 missing
 
 julia> median(skipmissing([1, 2, missing, 4]))
-2
+2.0
 ```
 """
 median(itr) = median!(collect(itr))
@@ -272,7 +272,7 @@ julia> x
  2
  3
 
-julia> y = zeros(3)
+julia> y = zeros(3);
 
 julia> quantile!(y, x, [0.1, 0.5, 0.9]) === y
 true
