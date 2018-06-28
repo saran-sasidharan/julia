@@ -1208,6 +1208,14 @@ mutable struct UserPasswordCredential <: AbstractCredential
     UserPasswordCredential(prompt_if_incorrect::Bool) = UserPasswordCredential("","",prompt_if_incorrect)
 end
 
+function Base.setproperty!(cred::UserPasswordCredential, name::Symbol, value)
+    if name == :pass
+        field = getfield(cred, name)
+        Base.shred!(field)
+    end
+    setfield!(cred, name, convert(fieldtype(typeof(cred), name), value))
+end
+
 function Base.shred!(cred::UserPasswordCredential)
     cred.user = ""
     Base.shred!(cred.pass)
@@ -1245,6 +1253,15 @@ mutable struct SSHCredential <: AbstractCredential
     SSHCredential(u::AbstractString, p::AbstractString, prompt_if_incorrect::Bool) = SSHCredential(u,p,"","",prompt_if_incorrect)
     SSHCredential(prompt_if_incorrect::Bool) = SSHCredential("","","","",prompt_if_incorrect)
 end
+
+function Base.setproperty!(cred::SSHCredential, name::Symbol, value)
+    if name == :pass
+        field = getfield(cred, name)
+        Base.shred!(field)
+    end
+    setfield!(cred, name, convert(fieldtype(typeof(cred), name), value))
+end
+
 
 function Base.shred!(cred::SSHCredential)
     cred.user = ""
@@ -1344,6 +1361,12 @@ end
 
 CredentialPayload(p::CredentialPayload) = p
 
+function Base.shred!(p::CredentialPayload)
+    # Note: Avoid shredding the `explicit` or `cache` fields as these are just references
+    # and it is not our responsibility to shred them.
+    p.credential !== nothing && Base.shred!(p.credential)
+    p.credential = nothing
+end
 
 """
     reset!(payload, [config]) -> CredentialPayload
@@ -1378,7 +1401,7 @@ should be destroyed. Should only be set to `false` during testing.
 """
 function approve(p::CredentialPayload; shred::Bool=true)
     cred = p.credential
-    cred === nothing && return  # No credentials were used
+    cred === nothing && return  # No credential was used
 
     if p.cache !== nothing
         approve(p.cache, cred, p.url)
@@ -1388,7 +1411,10 @@ function approve(p::CredentialPayload; shred::Bool=true)
         approve(p.config, cred, p.url)
     end
 
-    shred && Base.shred!(cred)
+    if shred
+        Base.shred!(cred)
+        p.credential = nothing
+    end
     nothing
 end
 
@@ -1403,17 +1429,19 @@ should be destroyed. Should only be set to `false` during testing.
 """
 function reject(p::CredentialPayload; shred::Bool=true)
     cred = p.credential
-    cred === nothing && return  # No credentials were used
+    cred === nothing && return  # No credential was used
 
     if p.cache !== nothing
         reject(p.cache, cred, p.url)
-        shred = false  # Avoid wiping `cred` as this would also wipe the cached copy
     end
     if p.allow_git_helpers
         reject(p.config, cred, p.url)
     end
 
-    shred && Base.shred!(cred)
+    if shred
+        Base.shred!(cred)
+        p.credential = nothing
+    end
     nothing
 end
 

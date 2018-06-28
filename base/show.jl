@@ -656,7 +656,7 @@ function show(io::IO, src::CodeInfo)
     if isempty(src.linetable) || src.linetable[1] isa LineInfoNode
         println(io)
         # TODO: static parameter values?
-        ir = Core.Compiler.inflate_ir(src, Core.svec())
+        ir = Core.Compiler.inflate_ir(src)
         IRShow.show_ir(lambda_io, ir, argnames=sourceinfo_slotnames(src))
     else
         # this is a CodeInfo that has not been used as a method yet, so its locations are still LineNumberNodes
@@ -715,8 +715,9 @@ function show_delim_array(io::IO, itr, op, delim, cl, delim_one, i1=1, n=typemax
             while true
                 x = y[1]
                 y = iterate(itr, y[2])
-                show(IOContext(recur_io, :typeinfo =>
-                               typeinfo <: Tuple ? fieldtype(typeinfo, i1+i0) : typeinfo),
+                show(IOContext(recur_io, :typeinfo => itr isa typeinfo <: Tuple ?
+                                             fieldtype(typeinfo, i1+i0) :
+                                             typeinfo),
                      x)
                 i1 += 1
                 if y === nothing || i1 > n

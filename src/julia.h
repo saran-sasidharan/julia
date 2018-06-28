@@ -236,7 +236,6 @@ typedef struct _jl_code_info_t {
     jl_array_t *code;  // Any array of statements
     jl_value_t *codelocs; // Int array of indicies into the line table
     jl_value_t *method_for_inference_limit_heuristics; // optional method used during inference
-    jl_value_t *slottypes; // types of variable slots (or `nothing`)
     jl_value_t *ssavaluetypes;  // types of ssa values (or count of them)
     jl_value_t *linetable; // Table of locations
     jl_array_t *ssaflags; // flags associated with each statement:
@@ -1933,6 +1932,16 @@ typedef struct {
     // parameters: LLVMBasicBlockRef as Ptr{Cvoid}, LLVMValueRef as Ptr{Cvoid}
     // return value: none
     jl_value_t *raise_exception;
+
+    // emit function: start emission of a new function
+    // parameters: MethodInstance, CodeInfo, world age as UInt
+    // return value: none
+    jl_value_t *emit_function;
+
+    // emitted function: end emission of a new function
+    // parameters: MethodInstance, CodeInfo, world age as UInt
+    // return value: none
+    jl_value_t *emitted_function;
 } jl_cgparams_t;
 extern JL_DLLEXPORT jl_cgparams_t jl_default_cgparams;
 

@@ -5326,6 +5326,11 @@ static std::unique_ptr<Module> emit_function(
     jl_array_t *stmts = ctx.code;
     size_t stmtslen = jl_array_dim0(stmts);
 
+    if (JL_HOOK_TEST(ctx.params, emit_function)) {
+        JL_HOOK_CALL(ctx.params, emit_function, 3, (jl_value_t*)ctx.linfo,
+                     (jl_value_t*)ctx.source, jl_box_ulong(world));
+    }
+
     // step 1b. unpack debug information
     int coverage_mode = jl_options.code_coverage;
     int malloc_log_mode = jl_options.malloc_log;
@@ -5390,11 +5395,11 @@ static std::unique_ptr<Module> emit_function(
     // step 3. some variable analysis
     size_t i;
     for (i = 0; i < nreq; i++) {
+        jl_varinfo_t &varinfo = ctx.slots[i];
+        varinfo.isArgument = true;
         jl_sym_t *argname = (jl_sym_t*)jl_array_ptr_ref(src->slotnames, i);
         if (argname == unused_sym)
             continue;
-        jl_varinfo_t &varinfo = ctx.slots[i];
-        varinfo.isArgument = true;
         jl_value_t *ty = jl_nth_slot_type(lam->specTypes, i);
         varinfo.value = mark_julia_type(ctx, (Value*)NULL, false, ty);
     }
@@ -5411,10 +5416,7 @@ static std::unique_ptr<Module> emit_function(
         varinfo.isSA = (jl_vinfo_sa(flags) != 0);
         varinfo.usedUndef = (jl_vinfo_usedundef(flags) != 0) || (!varinfo.isArgument && !src->inferred);
         if (!varinfo.isArgument) {
-            jl_value_t *typ = jl_is_array(src->slottypes) ? jl_array_ptr_ref(src->slottypes, i) : (jl_value_t*)jl_any_type;
-            if (!jl_is_type(typ))
-                typ = (jl_value_t*)jl_any_type;
-            varinfo.value = mark_julia_type(ctx, (Value*)NULL, false, typ);
+            varinfo.value = mark_julia_type(ctx, (Value*)NULL, false, (jl_value_t*)jl_any_type);
         }
     }
 
@@ -6659,6 +6661,11 @@ static std::unique_ptr<Module> emit_function(
         }
         ctx.roots = NULL;
         JL_UNLOCK(&m->writelock);
+    }
+
+    if (JL_HOOK_TEST(ctx.params, emitted_function)) {
+        JL_HOOK_CALL(ctx.params, emitted_function, 3, (jl_value_t*)ctx.linfo,
+                     (jl_value_t*)ctx.source, jl_box_ulong(world));
     }
 
     JL_GC_POP();

@@ -5981,6 +5981,13 @@ for U in unboxedunions
     end
 end
 
+# issue #27767
+let A=Vector{Union{Int, Missing}}(undef, 1)
+    resize!(A, 2)
+    @test length(A) == 2
+    @test A[2] === missing
+end
+
 end # module UnionOptimizations
 
 # issue #6614, argument destructuring
@@ -6057,6 +6064,9 @@ g25907b(x) = x[1]::Complex
 
 #issue #26363
 @test eltype(Ref(Float64(1))) === Float64
+@test ndims(Ref(1)) === 0
+@test collect(Ref(1)) == [v for v in Ref(1)] == fill(1)
+@test axes(Ref(1)) === size(Ref(1)) === ()
 
 # issue #23206
 g1_23206(::Tuple{Type{Int}, T}) where T = 0
@@ -6235,3 +6245,8 @@ function f27597(y)
 end
 @test f27597([1]) == [1]
 @test f27597([]) == 1:0
+
+# issue #22291
+wrap22291(ind) = (ind...,)
+@test @inferred(wrap22291(1)) == (1,)
+@test @inferred(wrap22291((1, 2))) == (1, 2)

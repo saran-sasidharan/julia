@@ -253,7 +253,6 @@ end
 end
 let ast12474 = code_typed(f12474, Tuple{Float64})
     @test isdispatchelem(ast12474[1][2])
-    @test all(x -> x isa Const || isdispatchelem(Core.Compiler.typesubtract(x, Nothing)), ast12474[1][1].slottypes)
 end
 
 
@@ -490,7 +489,6 @@ function test_inferred_static(arrow::Pair, all_ssa)
     code, rt = arrow
     @test isdispatchelem(rt)
     @test code.inferred
-    @test all(isdispatchelem, code.slottypes)
     for i = 1:length(code.code)
         e = code.code[i]
         test_inferred_static(e)
@@ -537,9 +535,7 @@ for (codetype, all_ssa) in Any[
         (code_typed(g18679, ())[1], false),
         (code_typed(h18679, ())[1], true),
         (code_typed(g19348, (typeof((1, 2.0)),))[1], true)]
-    # make sure none of the slottypes are left as Core.Compiler.Const objects
     code = codetype[1]
-    @test all(x -> isa(x, Type) || isa(x, Const), code.slottypes)
     local notconst(@nospecialize(other)) = true
     notconst(slot::TypedSlot) = @test isa(slot.typ, Type)
     function notconst(expr::Expr)
@@ -1034,7 +1030,7 @@ function count_specializations(method::Method)
     return n::Int
 end
 
-# demonstrate that inference can complete without waiting for MAX_TUPLETYPE_LEN or MAX_TYPE_DEPTH
+# demonstrate that inference can complete without waiting for MAX_TYPE_DEPTH
 copy_dims_out(out) = ()
 copy_dims_out(out, dim::Int, tail...) =  copy_dims_out((out..., dim), tail...)
 copy_dims_out(out, dim::Colon, tail...) = copy_dims_out((out..., dim), tail...)
@@ -1304,7 +1300,7 @@ let linfo = get_linfo(Base.convert, Tuple{Type{Int64}, Int32}),
     opt = Core.Compiler.OptimizationState(linfo, Core.Compiler.Params(world))
     # make sure the state of the properties look reasonable
     @test opt.src !== linfo.def.source
-    @test length(opt.src.slotflags) == length(opt.src.slotnames) == length(opt.src.slottypes)
+    @test length(opt.src.slotflags) == length(opt.src.slotnames)
     @test opt.src.ssavaluetypes isa Vector{Any}
     @test !opt.src.inferred
     @test opt.mod === Base
@@ -1688,3 +1684,41 @@ end
 f27078(T::Type{S}) where {S} = isa(T, UnionAll) ? f27078(T.body) : T
 T27078 = Vector{Vector{T}} where T
 @test f27078(T27078) === T27078.body
+
+# issue #27316 - inference shouldn't hang on these
+f27316(::Vector) = nothing
+f27316(::Any) = f27316(Any[][1]), f27316(Any[][1])
+@test Tuple{Nothing,Nothing} <: Base.return_types(f27316, Tuple{Int})[1] == Tuple{Union{Nothing, Tuple{Any,Any}},Union{Nothing, Tuple{Any,Any}}} # we may be able to improve this bound in the future
+function g27316()
+    x = nothing
+    while rand() < 0.5
+        x = (x,)
+    end
+    return x
+end
+@test Tuple{Tuple{Nothing}} <: Base.return_types(g27316, Tuple{})[1] == Any # we may be able to improve this bound in the future
+const R27316 = Tuple{Tuple{Vector{T}}} where T
+h27316_(x) = (x,)
+h27316_(x::Tuple{Vector}) = (Any[x][1],)::R27316 # a UnionAll of a Tuple, not vice versa!
+function h27316()
+    x = [1]
+    while rand() < 0.5
+        x = h27316_(x)
+    end
+    return x
+end
+@test Tuple{Tuple{Vector{Int}}} <: Base.return_types(h27316, Tuple{})[1] == Union{Vector{Int}, Tuple{Any}} # we may be able to improve this bound in the future
+
+# PR 27434, inference when splatting iterators with type-based state
+splat27434(x) = (x...,)
+struct Iterator27434
+    x::Int
+    y::Int
+    z::Int
+end
+Base.iterate(i::Iterator27434) = i.x, Val(1)
+Base.iterate(i::Iterator27434, ::Val{1}) = i.y, Val(2)
+Base.iterate(i::Iterator27434, ::Val{2}) = i.z, Val(3)
+Base.iterate(::Iterator27434, ::Any) = nothing
+@test @inferred splat27434(Iterator27434(1, 2, 3)) == (1, 2, 3)
+@test Core.Compiler.return_type(splat27434, Tuple{typeof(Iterators.repeated(1))}) == Union{}
